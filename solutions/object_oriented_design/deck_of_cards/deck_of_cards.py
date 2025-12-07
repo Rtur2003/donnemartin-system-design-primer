@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from enum import Enum
+import random
 import sys
 
 
@@ -14,6 +15,7 @@ class Suit(Enum):
 class Card(metaclass=ABCMeta):
 
     def __init__(self, value, suit):
+        self._value = None
         self.value = value
         self.suit = suit
         self.is_available = True
@@ -35,27 +37,25 @@ class BlackJackCard(Card):
         super(BlackJackCard, self).__init__(value, suit)
 
     def is_ace(self):
-        return True if self._value == 1 else False
+        return self._value == 1
 
     def is_face_card(self):
         """Jack = 11, Queen = 12, King = 13"""
-        return True if 10 < self._value <= 13 else False
+        return 10 < self._value <= 13
 
     @property
     def value(self):
-        if self.is_ace() == 1:
+        if self.is_ace():
             return 1
-        elif self.is_face_card():
+        if self.is_face_card():
             return 10
-        else:
-            return self._value
+        return self._value
 
     @value.setter
     def value(self, new_value):
-        if 1 <= new_value <= 13:
-            self._value = new_value
-        else:
+        if not 1 <= new_value <= 13:
             raise ValueError('Invalid card value: {}'.format(new_value))
+        self._value = new_value
 
 
 class Hand(object):
@@ -68,7 +68,7 @@ class Hand(object):
 
     def score(self):
         total_value = 0
-        for card in card:
+        for card in self.cards:
             total_value += card.value
         return total_value
 
@@ -81,18 +81,28 @@ class BlackJackHand(Hand):
         super(BlackJackHand, self).__init__(cards)
 
     def score(self):
-        min_over = sys.MAXSIZE
-        max_under = -sys.MAXSIZE
+        min_over = sys.maxsize
+        max_under = -sys.maxsize
         for score in self.possible_scores():
             if self.BLACKJACK < score < min_over:
                 min_over = score
             elif max_under < score <= self.BLACKJACK:
                 max_under = score
-        return max_under if max_under != -sys.MAXSIZE else min_over
+        return max_under if max_under != -sys.maxsize else min_over
 
     def possible_scores(self):
         """Return a list of possible scores, taking Aces into account."""
-        pass
+        scores = {0}
+        for card in self.cards:
+            if isinstance(card, BlackJackCard) and card.is_ace():
+                new_scores = set()
+                for score in scores:
+                    new_scores.add(score + 1)
+                    new_scores.add(score + 11)
+                scores = new_scores
+            else:
+                scores = {score + card.value for score in scores}
+        return list(scores)
 
 
 class Deck(object):
@@ -102,9 +112,9 @@ class Deck(object):
         self.deal_index = 0
 
     def remaining_cards(self):
-        return len(self.cards) - deal_index
+        return len(self.cards) - self.deal_index
 
-    def deal_card():
+    def deal_card(self):
         try:
             card = self.cards[self.deal_index]
             card.is_available = False
@@ -114,4 +124,5 @@ class Deck(object):
         return card
 
     def shuffle(self):
-        pass
+        random.shuffle(self.cards)
+        self.deal_index = 0
